@@ -1,0 +1,118 @@
+import numpy as np
+
+# Define the sigmoid activation function
+def sigmoid(x):
+    return 1 / (1 + np.exp(-x))
+
+# Sample data (replace with your actual data)
+# X represents input features, y represents target labels
+X = np.array([[0, 0, 1, 1],
+              [0, 1, 0, 1]]) # Example: 2 features, 4 samples
+y = np.array([[0, 1, 1, 0]]) # Example: 1 output, 4 samples
+
+# defining the model architecture
+inputLayer_neurons = X.shape[0]  # number of features in data set
+hiddenLayer_neurons = 10  # number of hidden layers neurons
+outputLayer_neurons = 1  # number of neurons at output layer
+
+# initializing weight
+weights_input_hidden = np.random.uniform(size=(inputLayer_neurons, hiddenLayer_neurons))
+weights_hidden_output = np.random.uniform(
+    size=(hiddenLayer_neurons, outputLayer_neurons)
+)
+
+# defining the parameters
+lr = 0.1
+epochs = 10000
+
+losses = []
+for epoch in range(epochs):
+    ## Forward Propogation
+
+    # calculating hidden layer activations
+    hiddenLayer_linearTransform = np.dot(weights_input_hidden.T, X)
+    hiddenLayer_activations = sigmoid(hiddenLayer_linearTransform)
+
+    # calculating the output
+    outputLayer_linearTransform = np.dot(
+        weights_hidden_output.T, hiddenLayer_activations
+    )
+    output = sigmoid(outputLayer_linearTransform)
+
+    ## Backward Propagation
+
+    # calculating error
+    error = np.square(y - output) / 2
+
+    # calculating rate of change of error w.r.t weight between hidden and output layer
+    error_wrt_output = -(y - output)
+    output_wrt_outputLayer_LinearTransform = np.multiply(output, (1 - output))
+    outputLayer_LinearTransform_wrt_weights_hidden_output = hiddenLayer_activations
+
+    error_wrt_weights_hidden_output = np.dot(
+        outputLayer_LinearTransform_wrt_weights_hidden_output,
+        (error_wrt_output * output_wrt_outputLayer_LinearTransform).T,
+    )
+
+    # calculating rate of change of error w.r.t weights between input and hidden layer
+    outputLayer_LinearTransform_wrt_hiddenLayer_activations = weights_hidden_output
+    hiddenLayer_activations_wrt_hiddenLayer_linearTransform = np.multiply(
+        hiddenLayer_activations, (1 - hiddenLayer_activations)
+    )
+    hiddenLayer_linearTransform_wrt_weights_input_hidden = X
+    error_wrt_weights_input_hidden = np.dot(
+        hiddenLayer_linearTransform_wrt_weights_input_hidden,
+        (
+            hiddenLayer_activations_wrt_hiddenLayer_linearTransform
+            * np.dot(
+                outputLayer_LinearTransform_wrt_hiddenLayer_activations,
+                (output_wrt_outputLayer_LinearTransform * error_wrt_output),
+            )
+        ).T,
+    )
+
+    # updating the weights
+    weights_hidden_output = weights_hidden_output - lr * error_wrt_weights_hidden_output
+    weights_input_hidden = weights_input_hidden - lr * error_wrt_weights_input_hidden
+
+    # print error at every 100th epoch
+    epoch_loss = np.average(error)
+    if epoch % 1000 == 0:
+        print(f"Error at epoch {epoch} is {epoch_loss:.5f}")
+
+    # appending the error of each epoch
+    losses.append(epoch_loss)
+import matplotlib.pyplot as plt
+
+# visualizing the error after each epoch
+plt.plot(np.arange(1, epochs + 1), np.array(losses))
+# final output from the model
+output[:, :5]
+y[:, :5]
+# Define region of interest by data limits
+steps = 1000
+x_span = np.linspace(X[0, :].min(), X[0, :].max(), steps)
+y_span = np.linspace(X[1, :].min(), X[1, :].max(), steps)
+xx, yy = np.meshgrid(x_span, y_span)
+
+# forward pass for region of interest
+hiddenLayer_linearTransform = np.dot(
+    weights_input_hidden.T, np.c_[xx.ravel(), yy.ravel()].T
+)
+hiddenLayer_activations = sigmoid(hiddenLayer_linearTransform)
+outputLayer_linearTransform = np.dot(weights_hidden_output.T, hiddenLayer_activations)
+output_span = sigmoid(outputLayer_linearTransform)
+
+# Make predictions across region of interest
+labels = (output_span > 0.5).astype(int)
+
+# Plot decision boundary in region of interest
+z = labels.reshape(xx.shape)
+fig, ax = plt.subplots()
+ax.contourf(xx, yy, z, alpha=0.2)
+
+# Get predicted labels on training data and plot
+train_labels = (output > 0.5).astype(int)
+
+# create scatter plot
+ax.scatter(X[0, :], X[1, :], s=10, c=y.squeeze())
